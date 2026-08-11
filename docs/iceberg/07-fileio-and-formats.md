@@ -8,12 +8,14 @@
 - `deleteFile(path)` (削除)
 - `initialize(properties)` (設定)
 
-拡張インターフェース:
+拡張インターフェース (`api/.../io/`):
 - `DelegateFileIO`: `FileIO + SupportsPrefixOperations + SupportsBulkOperations`
 - `SupportsBulkOperations`: 一括削除
 - `SupportsPrefixOperations`: プレフィックスによるファイルリスト
 - `SupportsRecoveryOperations`: ファイル復旧
-- `SupportsStorageCredentials`: 払い出しストレージ認証情報
+
+`core/.../io/` 側:
+- `SupportsStorageCredentials`: 払い出しストレージ認証情報 (`StorageCredential` が core にあるため、これだけ core 配置)
 
 ### InputFile / OutputFile
 
@@ -25,10 +27,12 @@
 | 実装 | モジュール | スキーム | 特徴 |
 |------|-----------|---------|------|
 | `HadoopFileIO` | core | HDFS, local, S3A等 | Hadoop FileSystem API 使用 |
-| `ResolvingFileIO` | core | 自動判別 | URI スキームで適切な FileIO に委譲。REST Catalog のデフォルト |
+| `ResolvingFileIO` | core | 自動判別 | URI スキームで適切な FileIO に委譲。[REST Catalog](06-catalog-and-rest.md#クライアント実装) のデフォルト |
 | `S3FileIO` | aws | `s3://`, `s3a://`, `s3n://`, `https://` | AWS SDK v2, バルク削除, credential vending |
 | `GCSFileIO` | gcp | `gs://` | Google Cloud Storage |
-| `ADLSFileIO` | azure | `abfss://` | Azure Data Lake Storage Gen2 |
+| `ADLSFileIO` | azure | `abfs://`, `abfss://`, `wasb://`, `wasbs://` | Azure Data Lake Storage Gen2 |
+
+スキームと実装の対応は `ResolvingFileIO.SCHEME_TO_FILE_IO` に定義され、未知のスキームは `HadoopFileIO` にフォールバックする。
 
 ## ファイルフォーマット統合
 

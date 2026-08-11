@@ -3,9 +3,11 @@
 ## Spark 連携
 
 ### 対応バージョン
-- Spark 3.5 (Scala 2.12)
-- Spark 4.0 (Scala 2.13)
-- Spark 4.1 (Scala 2.13)
+- Spark 3.5 (Scala 2.12 / 2.13 — ビルド時の `scalaVersion` プロパティで選択、デフォルト 2.12)
+- Spark 4.0 (Scala 2.13 固定)
+- Spark 4.1 (Scala 2.13 固定)
+
+3.5 のサブプロジェクト名は `settings.gradle` で `iceberg-spark-3.5_${scalaVersion}` と組み立てられるため 1 回のビルドでは片方の Scala バージョンしか生成されない。4.0 / 4.1 は `_2.13` がハードコードされている。
 
 ### DataSource V2 統合
 

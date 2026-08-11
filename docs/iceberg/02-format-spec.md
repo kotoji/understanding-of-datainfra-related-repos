@@ -1,6 +1,6 @@
 # テーブルフォーマット仕様 (v1-v4)
 
-仕様ファイル: `format/spec.md` (2137 行)
+仕様ファイル: `format/spec.md` (2,142 行)
 
 ## v1: Analytic Data Tables
 
@@ -10,8 +10,8 @@
 
 ## v2: Row-level Deletes
 
-- **削除ファイル** (position deletes, equality deletes) による行レベルの更新/削除
-- `sequence-number` の導入 (操作の論理的順序付け)
+- **削除ファイル** (position deletes, equality deletes) による行レベルの更新/削除 → [08-commit-and-write-path.md](08-commit-and-write-path.md#削除メカニズム)
+- `sequence-number` の導入 (操作の論理的順序付け) → [05-metadata-and-snapshots.md](05-metadata-and-snapshots.md#sequence-number-の役割)
 - マニフェストリストの `content` フィールド (0=data, 1=deletes)
 - `data_file` に `content` フィールド追加
 - `manifest-list` が snapshot で必須に (インライン `manifests` を置換)
@@ -19,10 +19,10 @@
 
 ## v3: Extended Types and Capabilities
 
-- **新データ型**: `timestamp_ns`, `timestamptz_ns`, `unknown`, `variant`, `geometry(C)`, `geography(C, A)`
+- **新データ型**: `timestamp_ns`, `timestamptz_ns`, `unknown`, `variant`, `geometry(C)`, `geography(C, A)` → [03-type-system-and-schema.md](03-type-system-and-schema.md#型階層)
 - **カラムデフォルト値**: `initial-default` (追加時設定、不変), `write-default` (追加時設定、変更可能)
-- **Row Lineage**: `_row_id` (行の一意識別子)、`_last_updated_sequence_number`
-- **Deletion Vectors (DV)**: Puffin ファイル内の Roaring bitmap。Position delete ファイルを置き換え
+- **Row Lineage**: `_row_id` (行の一意識別子)、`_last_updated_sequence_number` → [11-advanced-features.md](11-advanced-features.md#row-lineage-v3)
+- **Deletion Vectors (DV)**: Puffin ファイル内の Roaring bitmap。Position delete ファイルを置き換え → [08](08-commit-and-write-path.md#deletion-vector-の詳細-v3), [11](11-advanced-features.md#puffin-ファイル-統計)
 - **テーブル暗号化キー** のメタデータ追跡
 - **マルチ引数 Transform**: `source-ids` フィールド (パーティション/ソート用)
 - Position delete ファイルは deprecated
@@ -38,7 +38,7 @@
 
 | ファイル | 内容 |
 |---------|------|
-| `format/spec.md` | メインテーブル仕様 (210KB) |
+| `format/spec.md` | メインテーブル仕様 (2,142 行) |
 | `format/view-spec.md` | View メタデータ仕様 |
 | `format/puffin-spec.md` | Puffin 統計ファイルフォーマット |
 | `format/expressions-spec.md` | 式の形式仕様 (CHECK 制約、サーバー側スキャン) |

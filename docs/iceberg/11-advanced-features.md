@@ -1,4 +1,6 @@
-# 高度な機能とアーキテクチャ総括
+# 高度な機能
+
+v3 以降で追加された機能を扱う。全体のアーキテクチャ総括は [12-architecture-summary.md](12-architecture-summary.md) 参照。
 
 ## Row Lineage (v3)
 
@@ -16,9 +18,35 @@ Table metadata → next-row-id
                     └── Row → _row_id = data_file.first_row_id + row_pos
 ```
 
-この継承設計により、マニフェストとデータファイルをコミットシーケンス番号が判明する前に書き込める。楽観的並行制御でリトライ時に書き直し不要。
+### なぜ継承にするのか
 
-Equality delete で更新された行は追跡されない (完全な削除 + 新行挿入として扱う)。
+`_row_id` は「テーブル全体で一意な通し番号」なので、素直に実装するなら書き込み時に確定値を各行に埋め込むことになる。しかしそれは OCC と両立しない。
+
+`next-row-id` はテーブルメタデータ上の値なので、コミットが成功するまで**自分が何番から始められるかが分からない**。競合コミットが先に入れば開始位置はずれる。確定値を埋めていたら、リトライのたびにデータファイルを全部書き直すことになってしまう。
+
+そこで実ファイルには何も書かず、`first_row_id` をメタデータ階層に沿って伝播させ、読み取り時に
+
+```
+_row_id = data_file.first_row_id + 行のファイル内位置 (row_pos)
+```
+
+として算出する。こうすると:
+
+| 成果物 | リトライ時 |
+|--------|-----------|
+| データファイル | 書き直し不要 (`_row_id` を含まない) |
+| マニフェストファイル | 書き直し不要 (`first_row_id` は継承で埋まる) |
+| Manifest List | 書き直す (どのみち毎回書き直す) |
+
+これは sequence number の継承 ([05-metadata-and-snapshots.md](05-metadata-and-snapshots.md#継承の仕組み)) とまったく同じ発想で、「**コミットのリトライコストを Manifest List 1 個に抑える**」という Iceberg 共通の設計制約から導かれている。
+
+`_last_updated_sequence_number` も同様に、行を変更したときは `null` を書いておき、読み取り時にマニフェストエントリの sequence number で埋める。
+
+### 制約
+
+Equality delete で更新された行は追跡されない (完全な削除 + 新行挿入として扱う)。理由は spec が明示している通り、**equality delete を使うエンジンは書き込み前に既存データを読まない**ことを前提にしているため — 元の行を読んでいない以上、新しい行に引き継ぐべき `_row_id` を知りようがない。equality delete のそもそもの利点 (書き込み前の read を回避できる) と row lineage が原理的に両立しない、ということ。
+
+---
 
 ## Puffin ファイル (統計)
 
@@ -36,6 +64,8 @@ Magic (0x50 0x46 0x41 0x31) | Blob1 | ... | BlobN | Footer
 圧縮: LZ4, Zstd, 非圧縮
 
 テーブルメタデータの `statistics` フィールドで Puffin ファイルを参照。`partition-statistics` でパーティションごとの集計 (レコード数、ファイル数、削除数) を追跡。
+
+---
 
 ## View サポート
 
@@ -60,50 +90,3 @@ Magic (0x50 0x46 0x41 0x31) | Blob1 | ... | BlobN | Footer
 - `ViewMetadata`: UUID, schemas, versions, history, properties (Immutables ベース)
 
 Spark 連携: `SparkView` でラップ、`SparkCatalog` が Spark の `ViewCatalog` を実装
-
----
-
-## アーキテクチャ総括
-
-### レイヤード設計
-
-```
-┌─────────────────────────────────────────────────────┐
-│  Engine Integration Layer                            │
-│  (Spark / Flink / Kafka Connect / MapReduce)         │
-│  エンジン固有の DataSource/Table/Sink 実装            │
-├─────────────────────────────────────────────────────┤
-│  Operations Layer                                    │
-│  SnapshotProducer, MergingSnapshotProducer           │
-│  AppendFiles, OverwriteFiles, RowDelta, etc.         │
-│  コミットプロトコル (OCC + リトライ)                   │
-├─────────────────────────────────────────────────────┤
-│  Catalog Layer                                       │
-│  Catalog (interface) → 具象実装 (REST, Hive, JDBC 等) │
-│  TableOperations (SPI): アトミック CAS                │
-│  CachingCatalog (decorator)                          │
-├─────────────────────────────────────────────────────┤
-│  Metadata Layer                                      │
-│  TableMetadata (不変), Snapshot, ManifestFile          │
-│  Schema, PartitionSpec, SortOrder                    │
-│  Expression, Predicate, Evaluator                    │
-├─────────────────────────────────────────────────────┤
-│  I/O Layer                                           │
-│  FileIO (interface) → S3FileIO, GCSFileIO, ADLS 等   │
-│  InputFile / OutputFile                              │
-├─────────────────────────────────────────────────────┤
-│  File Format Layer                                   │
-│  Parquet, ORC, Arrow (プラグイン方式)                  │
-│  Builder パターンで InputFile/OutputFile を受取        │
-└─────────────────────────────────────────────────────┘
-```
-
-### コア設計原則
-
-1. **関心の分離**: 「メタデータの追跡場所」(Catalog) / 「メタデータのシリアライズ方法」(Parser) / 「ファイルの格納場所」(FileIO) / 「ファイルフォーマット」(Parquet/ORC/Arrow) が完全に独立
-2. **不変性**: TableMetadata, Snapshot, Schema 等は不変オブジェクト。変更は常に新インスタンスを生成
-3. **楽観的並行制御**: メタデータの compare-and-swap でアトミックコミット。リトライで競合解決
-4. **フィールド ID ベース**: スキーマ進化はカラム名ではなく一意 ID で追跡。リネーム・並べ替えが安全
-5. **マニフェスト再利用**: 変更のないマニフェストはスナップショット間で共有。O(1) スキャンプランニングの基盤
-6. **隠れたパーティショニング**: ユーザーはパーティション式を意識せず `WHERE` を書ける。エンジンが自動射影
-7. **プラグイン方式**: Catalog, FileIO, ファイルフォーマットすべて差し替え可能

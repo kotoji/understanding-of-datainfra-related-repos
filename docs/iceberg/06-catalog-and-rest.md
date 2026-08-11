@@ -41,7 +41,7 @@ Catalog と Table の間の SPI (Service Provider Interface):
 |---------|------|
 | `current()` | 現在の `TableMetadata` を返す |
 | `refresh()` | ストレージからメタデータを再読込 |
-| `commit(base, metadata)` | **アトミック CAS** (base が現在のものか検証、失敗時 `CommitFailedException`) |
+| `commit(base, metadata)` | **アトミック CAS** (base が現在のものか検証、失敗時 `CommitFailedException`)。呼び出し側のリトライ制御は [08-commit-and-write-path.md](08-commit-and-write-path.md#楽観的並行制御-occ) |
 | `io()` | FileIO |
 | `metadataFileLocation(fileName)` | メタデータファイルパス解決 |
 | `locationProvider()` | 新データファイルの配置先提供 |
@@ -61,25 +61,41 @@ Catalog と Table の間の SPI (Service Provider Interface):
 
 ## CachingCatalog
 
-任意の `Catalog` をラップする Caffeine ベースのキャッシュデコレータ。TTL 設定可能、ケースインセンシティブキー対応。ベーステーブルの有効期限切れ時にメタデータテーブルエントリも自動無効化。
+任意の `Catalog` をラップする Caffeine ベースのキャッシュデコレータ。ケースインセンシティブキー対応。
+
+有効期限は TTL (書き込みからの経過) ではなく **`expireAfterAccess`** — 最終アクセスからの経過時間で失効する。加えて `softValues()` を使うため、ヒープ逼迫時には GC がエントリを回収しうる。`MetadataTableInvalidatingRemovalListener` により、ベーステーブルの失効時にそのメタデータテーブルのエントリも連鎖的に無効化される。
 
 ## REST Catalog
 
 ### OpenAPI 仕様 (`open-api/rest-catalog-open-api.yaml`)
 
-主要エンドポイント:
+エンドポイントは 2 系統に分かれる:
+
+**プレフィックス非依存** (カタログ全体に対する操作)
 
 | パス | 操作 |
 |------|------|
-| `/v1/config` | カタログ設定取得 |
+| `/v1/config` | カタログ設定取得。**最初に呼ぶ**エンドポイントで、以降のパスに挿入する `prefix` もここで返る |
 | `/v1/oauth/tokens` | OAuth2 トークン交換 |
+
+**プレフィックス配下** (以下すべて `/v1/{prefix}/` に続くパス)
+
+| パス | 操作 |
+|------|------|
 | `namespaces` | リスト/作成 |
-| `namespaces/{ns}/tables` | リスト/作成 |
-| `namespaces/{ns}/tables/{table}` | ロード/コミット/削除 |
-| `namespaces/{ns}/tables/{table}/credentials` | 認証情報取得 |
-| `namespaces/{ns}/tables/{table}/plan` | スキャンプラン送信/取得 |
+| `namespaces/{namespace}` | ロード/削除 |
+| `namespaces/{namespace}/properties` | プロパティ更新 |
+| `namespaces/{namespace}/tables` | リスト/作成 |
+| `namespaces/{namespace}/tables/{table}` | ロード/コミット/削除 |
+| `namespaces/{namespace}/tables/{table}/credentials` | 認証情報取得 (vended credentials) |
+| `namespaces/{namespace}/tables/{table}/plan` | スキャンプラン送信/取得 (サーバー側プランニング) |
+| `namespaces/{namespace}/tables/{table}/metrics` | スキャンメトリクス報告 |
+| `namespaces/{namespace}/register` | 既存メタデータの登録 |
+| `tables/rename` | テーブルリネーム |
 | `transactions/commit` | マルチテーブルコミット |
-| `namespaces/{ns}/views` | ビュー操作 |
+| `namespaces/{namespace}/views` | ビュー操作 |
+
+`{prefix}` はマルチテナントなカタログサービスがテナントを識別するための可変セグメント。単一テナントの実装では空文字列でよい。
 
 ### クライアント実装
 

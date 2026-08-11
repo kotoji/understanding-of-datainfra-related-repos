@@ -2,7 +2,7 @@
 
 ## 型階層
 
-`api/src/main/java/org/apache/iceberg/types/`
+`api/.../types/`
 
 ```
 Type
@@ -52,6 +52,7 @@ Type
 | LIST | List |
 | MAP | Map |
 | VARIANT | Variant |
+| UNKNOWN | Object |
 
 ## Schema クラス (`api/.../Schema.java`)
 
