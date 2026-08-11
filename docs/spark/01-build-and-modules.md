@@ -8,7 +8,7 @@
 | 用途 | CI / リリースビルド | 開発時のインクリメンタルコンパイル |
 | 設定 | `pom.xml` (3,755行) | `project/SparkBuild.scala` (POM 読み込み) |
 
-SBT は Maven POM を `sbt-pom-reader` 経由で読み込むため、依存関係の定義は Maven が正とする設計。
+SBT は `sbt-pom-reader` (`SparkBuild` オブジェクトが `PomBuild` を extends) 経由で Maven POM をそのまま読み込む。依存関係のバージョンを SBT 側で別途管理しないことで、CI/リリースで使う Maven ビルドと開発時の SBT ビルドの間で依存バージョンが分岐するのを防いでいる。
 
 ## 主要 Maven Profile
 
@@ -42,7 +42,7 @@ spark-tags (基底)
   └─ spark-common-utils / spark-common-utils-java
   └─ spark-unsafe (off-heap メモリ)
   └─ spark-sketch (Count-Min Sketch 等)
-  └─ spark-kvstore (LevelDB KV ストア)
+  └─ spark-kvstore (組込み KV ストア。RocksDB / LevelDB / InMemory)
   └─ spark-network-common → spark-network-shuffle
        └─ spark-core ← 全モジュールの基盤
             ├─ spark-sql-api (公開 API 型定義)
@@ -56,18 +56,20 @@ spark-tags (基底)
             └─ spark-connect-server (gRPC サーバ)
 ```
 
-## 全モジュール一覧
+## 全モジュール一覧 (root `pom.xml` の `<module>` 全 50 件)
 
-**Common (10):** sketch, kvstore, network-common, network-shuffle, unsafe, utils, utils-java, variant, tags, config
+**`common/` (11):** sketch, kvstore, network-common, network-shuffle, network-yarn, unsafe, utils, utils-java, variant, tags, config
 
-**Core (6):** core, launcher, tools, repl, examples, assembly
+**Core 系 (6):** core, launcher, tools, repl, examples, assembly
 
-**SQL (7):** api, catalyst, core, hive, hive-thriftserver, connect/*, pipelines
+**`sql/` (6):** api, catalyst, core, hive, hive-thriftserver, pipelines
 
-**Connect (5):** shims, common, server, client/jvm, client/jdbc
+**`sql/connect/` (5):** shims, common, server, client/jvm, client/jdbc
 
-**UDF Worker (3):** proto, core, grpc
+**`udf/worker/` (3):** proto, core, grpc
 
-**Connectors (6):** avro, protobuf, kafka-0-10, kafka-0-10-sql, kafka-0-10-assembly, kafka-token-provider
+**`connector/` (11):** avro, protobuf, kafka-0-10, kafka-0-10-sql, kafka-0-10-assembly, kafka-0-10-token-provider, spark-ganglia-lgpl, kinesis-asl, kinesis-asl-assembly, profiler, docker-integration-tests
 
-**その他:** streaming, mllib, mllib-local, graphx, hadoop-cloud, resource-managers/yarn, resource-managers/kubernetes
+**`resource-managers/` (3):** yarn, kubernetes/core, kubernetes/integration-tests
+
+**その他 (5):** streaming, mllib, mllib-local, graphx, hadoop-cloud

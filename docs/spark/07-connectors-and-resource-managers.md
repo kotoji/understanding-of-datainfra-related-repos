@@ -25,7 +25,7 @@
 
 `KubernetesClusterManager` → `KubernetesClusterSchedulerBackend` (extends `CoarseGrainedSchedulerBackend`)
 
-**Feature Step パターン:** Pod spec を構成する composable なステップ:
+**Feature Step パターン** (設計思想は [10-design-patterns.md](10-design-patterns.md#composable-feature-steps-k8s) 参照): Pod spec を構成する composable なステップ:
 - `BasicDriverFeatureStep`, `BasicExecutorFeatureStep`
 - `MountVolumesFeatureStep`, `MountSecretsFeatureStep`
 - `HadoopConfDriverFeatureStep`, `KerberosConfDriverFeatureStep`

@@ -15,7 +15,7 @@ SQL Text / DataFrame API
 [Optimizer] ─── 136KB, 47 最適化ルールファイル
     │            Push-down, Folding, Join Reorder, CBO
     ▼
-[SparkPlanner] ─── 16 Strategy (JoinSelection, Aggregation 等)
+[SparkPlanner] ─── 17 Strategy (JoinSelection, Aggregation 等) + 拡張分
     │               LogicalPlan → SparkPlan 変換
     ▼
 [Preparations] ─── 16 ルール
@@ -107,6 +107,7 @@ abstract class Rule[TreeType <: TreeNode[_]] {
 
 **V2 API (Java interface ベース, 推奨):**
 - `TableCatalog` / `Table` / `ScanBuilder` → `Scan` → `Batch` / `MicroBatchStream` / `ContinuousStream`
-- Push-down mixin: Filters, RequiredColumns, Aggregates, Limit, TopN, Join, VariantExtractions
+- Push-down mixin (`SupportsPushDown*`): Filters, V2Filters, RequiredColumns, Aggregates, Limit, Offset, TopN, TableSample, Join, VariantExtractions
+- Runtime filtering mixin: `SupportsRuntimeFiltering`, `SupportsRuntimeV2Filtering`
 - Reporting mixin: Statistics, Partitioning, Ordering
 - `V2ScanRelationPushDown` optimizer ルールで push-down を制御

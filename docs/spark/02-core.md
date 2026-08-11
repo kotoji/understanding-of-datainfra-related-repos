@@ -37,7 +37,7 @@ Dependency[T]
        └─ PipelinedShuffleDependency (Spark 5.0 新規: インクリメンタル読み出し)
 ```
 
-**主要 RDD サブクラス (41ファイル):**
+**主要 RDD サブクラス** (`core/.../rdd/` は 42 の `.scala` ファイル。うち `RDDCheckpointData` 等の非サブクラスも含む):
 - `MapPartitionsRDD` — map/flatMap/filter の結果
 - `ShuffledRDD` — shuffle 操作の結果
 - `ParallelCollectionRDD` — `sc.parallelize()` で生成
@@ -71,9 +71,9 @@ RDD の lineage グラフから Stage の DAG を構築する。
 
 ## Shuffle システム
 
-Spark 5.0 では2種類の ShuffleManager が並存:
+Spark 5.0 では2種類の ShuffleManager が並存する。`BlockingShuffleManager` / `PipelinedShuffleManager` は共に `ShuffleManager` trait を継承する trait で、各 Manager 実装はどちらか一方を extends する:
 
-| Manager | 設定キー | 型 | 説明 |
+| Manager (実装クラス) | 設定キー | 継承元 trait | 説明 |
 |---------|----------|------|------|
 | `SortShuffleManager` | `spark.shuffle.manager` | `BlockingShuffleManager` | 従来のソートベース shuffle。デフォルト |
 | `StreamingShuffleManager` | `spark.shuffle.manager.incremental` | `PipelinedShuffleManager` | **5.0 新規**: producer 実行中に consumer が読み出し開始可能 |
@@ -81,8 +81,8 @@ Spark 5.0 では2種類の ShuffleManager が並存:
 `SparkEnv.shuffleManagerFor(dep)` で `PipelinedShuffleDependency` なら pipelined manager、それ以外なら blocking manager にルーティング。
 
 **SortShuffleManager の3つの書き込みパス:**
-1. `BypassMergeSortShuffleHandle` — partition 数 < 200 かつ map-side combine なし
-2. `SerializedShuffleHandle` — serializer が relocation 対応、partition 数 ≤ 16M
+1. `BypassMergeSortShuffleHandle` — map-side combine なし、かつ partition 数 ≤ `spark.shuffle.sort.bypassMergeThreshold` (デフォルト 200)
+2. `SerializedShuffleHandle` — map-side combine なし、serializer が relocation 対応、partition 数 ≤ 16M (`1 << 24`)
 3. `BaseShuffleHandle` — デフォルト (deserialize → sort → spill)
 
 ## Storage / キャッシュ
@@ -95,7 +95,7 @@ Spark 5.0 では2種類の ShuffleManager が並存:
 - 管理メモリ = (heap - 300MB) x 0.6
 - Storage / Execution で soft boundary、相互借用可能
 - Storage が借りた Execution メモリは、キャッシュ eviction で回収可能
-- Execution メモリは Storage から回収されない
+- Execution メモリは Storage から回収されない (この非対称設計の意図は [10-design-patterns.md](10-design-patterns.md#two-tier-memory-management) 参照)
 
 ## SparkEnv
 

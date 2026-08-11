@@ -28,11 +28,19 @@ Client (結果受信)
 
 ## Server Side
 
-- `SparkConnectService` — gRPC AsyncService 実装
-- `SparkConnectPlanner` — protobuf Plan → Spark SQL LogicalPlan 変換
+`sql/connect/server` の主要パッケージ:
+
+| パッケージ | 役割 |
+|-----------|------|
+| `service` | `SparkConnectService` (gRPC AsyncService)、session/artifact ハンドラ |
+| `planner` | `SparkConnectPlanner` — protobuf Plan → Spark SQL LogicalPlan 変換 |
+| `execution` | `ExecuteGrpcResponseSender` 等、結果ストリーミング |
+| `plugin` | `SparkConnectPlugin` による拡張ポイント |
+| `ml` / `pipelines` | ML 操作、Declarative Pipelines の Connect 対応 |
+| `config` / `ui` / `utils` | 設定、Spark UI 統合、共通処理 |
+
 - `SparkConnectSessionManager` — user/session 毎の SparkSession 管理
-- `ExecuteGrpcResponseSender` — 結果ストリーミング
-- Plugin system (`SparkConnectPlugin`) で拡張可能
+- **Artifact 管理:** クライアントが送った jar/file/pyfile を `SparkConnectAddArtifactsHandler` が受信し、`SparkConnectArtifactStatusesHandler` で登録状況を確認できる。セッション毎に独立したディレクトリに配置され、UDF 実行時の classpath/PYTHONPATH に追加される
 
 ## Client Side
 

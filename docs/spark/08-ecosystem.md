@@ -37,4 +37,4 @@
 | `unsafe` | `UnsafeRow`, off-heap メモリ管理 |
 | `sketch` | Count-Min Sketch 等の確率的データ構造 |
 | `network-common` | Netty ベースの RPC/transport |
-| `kvstore` | LevelDB ベースの KV ストア (Spark UI 用) |
+| `kvstore` | 組込み KV ストア (Spark UI / History Server 用)。`InMemoryStore` / `RocksDB` / `LevelDB` の3実装。`spark.history.store.hybridStore.diskBackend` のデフォルトは `ROCKSDB` で、LevelDB は deprecated |
