@@ -48,6 +48,8 @@ Dependency[T]
 
 3層構造: **DAGScheduler → TaskScheduler → SchedulerBackend**
 
+1 回の action が driver / executor を往復する全経路のメソッド単位の追跡は [11-job-execution-flow.md](11-job-execution-flow.md) を参照。
+
 ### DAGScheduler (4,464行)
 
 RDD の lineage グラフから Stage の DAG を構築する。
